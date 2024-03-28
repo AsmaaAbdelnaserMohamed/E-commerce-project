@@ -78,7 +78,7 @@ export const createCheckOutSession = catchError(async (req, res, next) => {
 
 export const createOnlineOrder = catchError(async (request, response) => {
 
-  const sig = request.headers['stripe-signature'].toString()
+  const sig = request.headers['stripe-signature']
 
   let event;
 
