@@ -91,6 +91,7 @@ export const createOnlineOrder = catchError(async (request, response) => {
   // Handle the event
   if (event.type == 'checkout.session.completed') {
     const checkoutSessionCompleted = event.data.object;
+    card(event.data.object)
     console.log("create order here...");
   } else {
     console.log(`Unhandled event type ${event.type}`);
@@ -98,3 +99,41 @@ export const createOnlineOrder = catchError(async (request, response) => {
   // Return a 200 response to acknowledge receipt of the event
   response.send();
 });
+
+
+async function card(en, res) {
+  // 1-get cart=>cartId
+  let cart = await cartModel.findById(e.client_reference_id)
+  if (!cart) return next(new AppError("cart not found", 404))
+  let user = await userModel.findOne({ email: e.customer_email })
+  // 3-create order
+  let order = new orderModel({
+    user: user._id,
+    totalOrderPrice: e.amount_total / 100,
+    orderItems: cart.cartItems,
+    shippingAddress: e.metadata.shippingAddress,
+    paymentType: card,
+    isPaid: true,
+    paidAt: Date.now(),
+
+  })
+  await order.save();
+
+  // 4-increment sold & decrement quantity
+  let options = cart.cartItems.map((item) => {
+    return (
+      {
+        updateOne: {
+          "filter": { _id: item.product },
+          "update": { $inc: { sold: item.quantity, quantity: -item.quantity } }
+        }
+      }
+    )
+  })
+
+  await productModel.bulkWrite(options)
+
+  // 5-clear cart
+  await cartModel.findByIdAndDelete({ user: user._id })
+  res.json({ message: 'success', order })
+}
