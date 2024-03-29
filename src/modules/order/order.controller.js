@@ -1,6 +1,7 @@
 import { cartModel } from "../../../database/models/cart.model.js";
 import { orderModel } from "../../../database/models/order.model.js";
 import { productModel } from "../../../database/models/product.model.js";
+import { userModel } from "../../../database/models/user.model.js";
 import { catchError } from "../../middleware/catchError.js";
 import { AppError } from "../../utils/AppError.js";
 import Stripe from 'stripe';
@@ -101,31 +102,35 @@ export const createOnlineOrder = catchError(async (request, response) => {
 });
 
 
-async function card(en, res) {
+
+
+
+
+
+async function card(event, res) {
   // 1-get cart=>cartId
-  let cart = await cartModel.findById(e.client_reference_id)
+  let cart = await cartModel.findById(event.client_reference_id)
   if (!cart) return next(new AppError("cart not found", 404))
-  let user = await userModel.findOne({ email: e.customer_email })
+  let user = await userModel.findOne({ user: event.cus })
   // 3-create order
   let order = new orderModel({
     user: user._id,
-    totalOrderPrice: e.amount_total / 100,
     orderItems: cart.cartItems,
-    shippingAddress: e.metadata.shippingAddress,
+    totalOrderPrice: event.data.object.amount_total / 100,
+    shippingAddress: event.data.object.shippingAddress,
     paymentType: "card",
     isPaid: true,
     paidAt: Date.now(),
-
   })
   await order.save();
+
   if (order) {
+
     // 4-increment sold & decrement quantity
-    let options = orderItems.map(item => ({
-
+    let options = cart.cartItems.map(item => ({
       updateOne: {
-        "filter": { _id: item.product },
-        "update": { $inc: { sold: item.quantity, quantity: -item.quantity } }
-
+        filter: { _id: item.product },
+        update: { $inc: { sold: item.quantity, quantity: -item.quantity } }
       }
     }))
 
@@ -133,7 +138,51 @@ async function card(en, res) {
 
     // 5-clear cart
     await cartModel.findOneAndDelete({ user: user._id })
-    res.json({ message: 'success', order })
+    return res.status(200).json({ message: 'success', order })
   }
 
+  return next(new AppError("order not found", 404))
+
 }
+
+
+
+
+
+
+// async function card(en, res) {
+//   // 1-get cart=>cartId
+//   let cart = await cartModel.findById(e.client_reference_id)
+//   if (!cart) return next(new AppError("cart not found", 404))
+//   let user = await userModel.findOne({ email: e.customer_email })
+//   // 3-create order
+//   let order = new orderModel({
+//     user: user._id,
+//     totalOrderPrice: e.amount_total / 100,
+//     orderItems: cart.cartItems,
+//     shippingAddress: e.metadata.shippingAddress,
+//     paymentType: "card",
+//     isPaid: true,
+//     paidAt: Date.now(),
+
+//   })
+//   await order.save();
+//   if (order) {
+//     // 4-increment sold & decrement quantity
+//     let options = orderItems.map(item => ({
+
+//       updateOne: {
+//         "filter": { _id: item.product },
+//         "update": { $inc: { sold: item.quantity, quantity: -item.quantity } }
+
+//       }
+//     }))
+
+//     await productModel.bulkWrite(options)
+
+//     // 5-clear cart
+//     await cartModel.findOneAndDelete({ user: user._id })
+//     res.json({ message: 'success', order })
+//   }
+
+// }
