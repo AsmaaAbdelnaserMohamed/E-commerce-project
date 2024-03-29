@@ -77,16 +77,16 @@ export const createCheckOutSession = catchError(async (req, res, next) => {
   res.json({ message: 'success', session })
 });
 
-export const createOnlineOrder = catchError(async (request, response) => {
+export const createOnlineOrder = catchError(async (req, res) => {
 
-  const sig = request.headers['stripe-signature'].toString();
+  const sig = req.headers['stripe-signature'].toString();
 
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(request.body, sig, process.env.EndPointSecret);
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.EndPointSecret);
   } catch (err) {
-    response.status(400).send(`Webhook Error: ${err.message}`);
+    res.status(400).send(`Webhook Error: ${err.message}`);
     return;
   }
   // Handle the event
@@ -97,8 +97,8 @@ export const createOnlineOrder = catchError(async (request, response) => {
   } else {
     console.log(`Unhandled event type ${event.type}`);
   }
-  // Return a 200 response to acknowledge receipt of the event
-  response.send();
+  // Return a 200 res to acknowledge receipt of the event
+  res.send();
 });
 
 
@@ -109,9 +109,9 @@ export const createOnlineOrder = catchError(async (request, response) => {
 
 async function card(event, res) {
   // 1-get cart=>cartId
-  let cart = await cartModel.findById(event.client_reference_id)
+  let cart = await cartModel.findById(event.data.object.client_reference_id)
   if (!cart) return next(new AppError("cart not found", 404))
-  let user = await userModel.findOne({ user: event.cus })
+  let user = await userModel.findOne({ user: event.customer_email })
   // 3-create order
   let order = new orderModel({
     user: user._id,
