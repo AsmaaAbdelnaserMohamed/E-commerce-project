@@ -78,12 +78,12 @@ export const createCheckOutSession = catchError(async (req, res, next) => {
 
 export const createOnlineOrder = catchError(async (request, response) => {
 
-  const sig = request.headers['stripe-signature']
+  const sig = request.headers['stripe-signature'].toString();
 
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(request.body, sig, "whsec_brR93yAG1dbszEVfxIkLFn0ZWd64HbRs");
+    event = stripe.webhooks.constructEvent(request.body, sig, process.env.EndPointSecret);
   } catch (err) {
     response.status(400).send(`Webhook Error: ${err.message}`);
     return;
@@ -112,28 +112,28 @@ async function card(en, res) {
     totalOrderPrice: e.amount_total / 100,
     orderItems: cart.cartItems,
     shippingAddress: e.metadata.shippingAddress,
-    paymentType: card,
+    paymentType: "card",
     isPaid: true,
     paidAt: Date.now(),
 
   })
   await order.save();
+  if (order) {
+    // 4-increment sold & decrement quantity
+    let options = orderItems.map(item => ({
 
-  // 4-increment sold & decrement quantity
-  let options = cart.cartItems.map((item) => {
-    return (
-      {
-        updateOne: {
-          "filter": { _id: item.product },
-          "update": { $inc: { sold: item.quantity, quantity: -item.quantity } }
-        }
+      updateOne: {
+        "filter": { _id: item.product },
+        "update": { $inc: { sold: item.quantity, quantity: -item.quantity } }
+
       }
-    )
-  })
+    }))
 
-  await productModel.bulkWrite(options)
+    await productModel.bulkWrite(options)
 
-  // 5-clear cart
-  await cartModel.findByIdAndDelete({ user: user._id })
-  res.json({ message: 'success', order })
+    // 5-clear cart
+    await cartModel.findOneAndDelete({ user: user._id })
+    res.json({ message: 'success', order })
+  }
+
 }
