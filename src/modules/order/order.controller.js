@@ -129,7 +129,7 @@ export const createCheckOutSession = catchError(async (req, res, next) => {
 
 export const createOnlineOrder = catchError((request, response) => {
   const sig = request.headers['stripe-signature'].toString();
-  let event; 
+  let event;
   try {
     event = stripe.webhooks.constructEvent(request.body, sig, "whsec_brR93yAG1dbszEVfxIkLFn0ZWd64HbRs");
   } catch (err) {
@@ -139,7 +139,48 @@ export const createOnlineOrder = catchError((request, response) => {
   if (event.type == 'checkout.session.completed') {
     const checkoutSessionCompleted = event.data.object;
     console.log('create order here......!');
+    cart(event.data.object)
   } else {
     console.log(`Unhandled event type ${event.type}`);
   }
 });
+
+
+async function card(e) {
+  // 1-get cart=>cartId
+  let cart = await cartModel.findById(e.client_reference_id)
+  if (!cart) return next(new AppError("cart not found", 404))
+  let user = await userModel.findOne({ email: e.customer_email })
+  // 3-create order
+  let order = new orderModel({
+    user: user._id,
+    orderItems: cart.cartItems,
+    totalOrderPrice: e.amount_total / 100,
+    shippingAddress: e.metadata.shippingAddress,
+    paymentType: "card",
+    isPaid: true,
+    paidAt: Date.now(),
+  })
+  await order.save();
+
+  if (order) {
+    // 4-increment sold & decrement quantity
+    let options = cart.cartItems.map((item) => {
+      return (
+        {
+          updateOne: {
+            "filter": { _id: item.product },
+            "update": { $inc: { sold: item.quantity, quantity: -item.quantity } }
+          }
+        }
+      )
+    })
+
+    await productModel.bulkWrite(options)
+
+    // 5-clear cart
+    await cartModel.findByIdAndDelete({ user: user._id })
+    res.json({ message: 'success', order })
+  }
+  return next(new AppError("order not found", 404))// Return the order if everything is successful
+}
