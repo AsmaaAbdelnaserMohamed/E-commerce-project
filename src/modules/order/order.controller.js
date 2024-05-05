@@ -5,7 +5,7 @@ import { userModel } from "../../../database/models/user.model.js";
 import { catchError } from "../../middleware/catchError.js";
 import { AppError } from "../../utils/AppError.js";
 import Stripe from 'stripe';
-const stripe = new Stripe('sk_test_51Ov6fYRummjHSFwf7b9OouUIbdUonx0nU1AqvG02wj73GCynfGkQt9orNZbO83lRkH2RjqTotJeZcgK8K1MZ42dS00XabqzpGz');
+const stripe = new Stripe("sk_test_51Ov6fYRummjHSFwf7b9OouUIbdUonx0nU1AqvG02wj73GCynfGkQt9orNZbO83lRkH2RjqTotJeZcgK8K1MZ42dS00XabqzpGz");
 export const createOrderCash = catchError(async (req, res, next) => {
   // 1-get cart=>cartId
   let cart = await cartModel.findById(req.params.id)
@@ -77,112 +77,69 @@ export const createCheckOutSession = catchError(async (req, res, next) => {
   res.json({ message: 'success', session })
 });
 
-export const createOnlineOrder = catchError(async (req, res) => {
+// async function card(event) {
+//   try {
+//     // 1-get cart=>cartId
+//     let cart = await cartModel.findById(event.client_reference_id)
+//     if (!cart) throw new Error("Cart not found");
 
-  const sig = req.headers['stripe-signature'].toString();
+//     let user = await userModel.findOne({ email: event.customer_email })
+//     if (!user) throw new Error("User not found");
 
-  let event;
+//     // 3-create order
+//     let order = new orderModel({
+//       user: user._id,
+//       orderItems: cart.cartItems,
+//       totalOrderPrice: event.amount_total / 100,
+//       shippingAddress: event.shippingAddress,
+//       paymentType: "card",
+//       isPaid: true,
+//       paidAt: Date.now(),
+//     });
 
+//     // Attempt to save the order
+//     try {
+//       await order.save();
+//     } catch (error) {
+//       // Handle the error from the order.save() operation
+//       console.error("Error saving order:", error);
+//     }
+
+//     // 4-increment sold & decrement quantity
+//     let options = cart.cartItems.map(item => ({
+//       updateOne: {
+//         filter: { _id: item.product },
+//         update: { $inc: { sold: item.quantity, quantity: -item.quantity } }
+//       }
+//     }));
+
+//     await productModel.bulkWrite(options);
+
+//     // 5-clear cart
+//     await cartModel.findOneAndDelete({ _id: cart._id });
+
+//     return order; // Return the order if everything is successful
+//   } catch (error) {
+//     // Handle any errors that occurred during the process
+//     console.error("Error creating order:", error);
+//     throw error; // Re-throw the error to be handled by the caller
+//   }
+// }
+
+
+export const createOnlineOrder = catchError((request, response) => {
+  const sig = request.headers['stripe-signature'].toString();
+  let event; 
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, process.env.EndPointSecret);
+    event = stripe.webhooks.constructEvent(request.body, sig, "whsec_brR93yAG1dbszEVfxIkLFn0ZWd64HbRs");
   } catch (err) {
-    res.status(400).send(`Webhook Error: ${err.message}`);
-    return;
+    return response.status(400).send(`Webhook Error: ${err.message}`);
   }
   // Handle the event
   if (event.type == 'checkout.session.completed') {
     const checkoutSessionCompleted = event.data.object;
-    card(event.data.object)
-    console.log("create order here...");
+    console.log('create order here......!');
   } else {
     console.log(`Unhandled event type ${event.type}`);
   }
-  // Return a 200 res to acknowledge receipt of the event
-  res.send();
 });
-
-
-
-
-
-
-
-async function card(event, res) {
-  // 1-get cart=>cartId
-  let cart = await cartModel.findById(event.data.object.client_reference_id)
-  if (!cart) return next(new AppError("cart not found", 404))
-  let user = await userModel.findOne({ user: event.customer_email })
-  // 3-create order
-  let order = new orderModel({
-    user: user._id,
-    orderItems: cart.cartItems,
-    totalOrderPrice: event.data.object.amount_total / 100,
-    shippingAddress: event.data.object.shippingAddress,
-    paymentType: "card",
-    isPaid: true,
-    paidAt: Date.now(),
-  })
-  await order.save();
-
-  if (order) {
-
-    // 4-increment sold & decrement quantity
-    let options = cart.cartItems.map(item => ({
-      updateOne: {
-        filter: { _id: item.product },
-        update: { $inc: { sold: item.quantity, quantity: -item.quantity } }
-      }
-    }))
-
-    await productModel.bulkWrite(options)
-
-    // 5-clear cart
-    await cartModel.findOneAndDelete({ user: user._id })
-    return res.status(200).json({ message: 'success', order })
-  }
-
-  return next(new AppError("order not found", 404))
-
-}
-
-
-
-
-
-
-// async function card(en, res) {
-//   // 1-get cart=>cartId
-//   let cart = await cartModel.findById(e.client_reference_id)
-//   if (!cart) return next(new AppError("cart not found", 404))
-//   let user = await userModel.findOne({ email: e.customer_email })
-//   // 3-create order
-//   let order = new orderModel({
-//     user: user._id,
-//     totalOrderPrice: e.amount_total / 100,
-//     orderItems: cart.cartItems,
-//     shippingAddress: e.metadata.shippingAddress,
-//     paymentType: "card",
-//     isPaid: true,
-//     paidAt: Date.now(),
-
-//   })
-//   await order.save();
-//   if (order) {
-//     // 4-increment sold & decrement quantity
-//     let options = orderItems.map(item => ({
-
-//       updateOne: {
-//         "filter": { _id: item.product },
-//         "update": { $inc: { sold: item.quantity, quantity: -item.quantity } }
-
-//       }
-//     }))
-
-//     await productModel.bulkWrite(options)
-
-//     // 5-clear cart
-//     await cartModel.findOneAndDelete({ user: user._id })
-//     res.json({ message: 'success', order })
-//   }
-
-// }
