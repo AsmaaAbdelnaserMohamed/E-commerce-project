@@ -138,15 +138,15 @@ export const createOnlineOrder = catchError((request, response) => {
   // Handle the event
   if (event.type == 'checkout.session.completed') {
     // const checkoutSessionCompleted = event.data.object;
-    console.log('create order here......!');
     cart(event.data.object)
+    console.log('create order here......!');
   } else {
     console.log(`Unhandled event type ${event.type}`);
   }
 });
 
 
-async function card(e,res) {
+async function card(e, res) {
   // 1-get cart=>cartId
   let cart = await cartModel.findById(e.client_reference_id)
   if (!cart) return next(new AppError("cart not found", 404))
