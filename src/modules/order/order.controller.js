@@ -13,7 +13,7 @@ export const createOrderCash = catchError(async (req, res, next) => {
   // 2-totalPrice
   let totalOrderPrice = cart.totalPriceAfterDiscount ? cart.totalPriceAfterDiscount : cart.totalPrice
   // 3-create order
-  let order = new orderModel({
+  let order = new orderModel({ 
     user: req.user._id,
     totalOrderPrice,
     orderItems: cart.cartItems,
@@ -54,6 +54,7 @@ export const createCheckOutSession = catchError(async (req, res, next) => {
   // 1-get cart=>cartId
   let cart = await cartModel.findById(req.params.id)
   if (!cart) return next(new AppError("cart not found", 404))
+  console.log(cart);
   // 2-totalPrice
   let totalOrderPrice = cart.totalPriceAfterDiscount ? cart.totalPriceAfterDiscount : cart.totalPrice
   // 3-create session
@@ -77,74 +78,45 @@ export const createCheckOutSession = catchError(async (req, res, next) => {
   res.json({ message: 'success', session })
 });
 
-// async function card(event) {
+// export const createOnlineOrder = catchError((request, response) => {
+//   const sig = request.headers['stripe-signature'].toString();
+//   let event;
 //   try {
-//     // 1-get cart=>cartId
-//     let cart = await cartModel.findById(event.client_reference_id)
-//     if (!cart) throw new Error("Cart not found");
-
-//     let user = await userModel.findOne({ email: event.customer_email })
-//     if (!user) throw new Error("User not found");
-
-//     // 3-create order
-//     let order = new orderModel({
-//       user: user._id,
-//       orderItems: cart.cartItems,
-//       totalOrderPrice: event.amount_total / 100,
-//       shippingAddress: event.shippingAddress,
-//       paymentType: "card",
-//       isPaid: true,
-//       paidAt: Date.now(),
-//     });
-
-//     // Attempt to save the order
-//     try {
-//       await order.save();
-//     } catch (error) {
-//       // Handle the error from the order.save() operation
-//       console.error("Error saving order:", error);
-//     }
-
-//     // 4-increment sold & decrement quantity
-//     let options = cart.cartItems.map(item => ({
-//       updateOne: {
-//         filter: { _id: item.product },
-//         update: { $inc: { sold: item.quantity, quantity: -item.quantity } }
-//       }
-//     }));
-
-//     await productModel.bulkWrite(options);
-
-//     // 5-clear cart
-//     await cartModel.findOneAndDelete({ _id: cart._id });
-
-//     return order; // Return the order if everything is successful
-//   } catch (error) {
-//     // Handle any errors that occurred during the process
-//     console.error("Error creating order:", error);
-//     throw error; // Re-throw the error to be handled by the caller
+//     event = stripe.webhooks.constructEvent(request.body, sig, "whsec_brR93yAG1dbszEVfxIkLFn0ZWd64HbRs");
+//   } catch (err) {
+//     return response.status(400).send(`Webhook Error: ${err.message}`);
 //   }
-// }
+//   // Handle the event
+//   if (event.type == 'checkout.session.completed') {
+//     // const checkoutSessionCompleted = event.data.object;
+//     cart(event.data.object)
+//     console.log('create order here......!');
+//   } else {
+//     console.log(`Unhandled event type ${event.type}`);
+//   }
+// });
+export const createOnlineOrder = catchError((request, response, next) => {
+  const sig = request.headers['stripe-signature'];
+  if (!sig) {
+    return response.status(400).send(`Stripe signature header not found.`);
+  }
 
-
-export const createOnlineOrder = catchError((request, response) => {
-  const sig = request.headers['stripe-signature'].toString();
   let event;
   try {
     event = stripe.webhooks.constructEvent(request.body, sig, "whsec_brR93yAG1dbszEVfxIkLFn0ZWd64HbRs");
   } catch (err) {
     return response.status(400).send(`Webhook Error: ${err.message}`);
   }
+
   // Handle the event
   if (event.type == 'checkout.session.completed') {
     // const checkoutSessionCompleted = event.data.object;
-    cart(event.data.object)
+    card(event.data.object)
     console.log('create order here......!');
   } else {
     console.log(`Unhandled event type ${event.type}`);
   }
 });
-
 
 async function card(e, res) {
   // 1-get cart=>cartId
