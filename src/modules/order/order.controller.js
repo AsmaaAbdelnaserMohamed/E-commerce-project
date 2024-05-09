@@ -50,68 +50,68 @@ export const getAllOrders = catchError(async (req, res, next) => {
   res.json({ message: 'success', order });
 });
 
-// export const createCheckOutSession = catchError(async (req, res, next) => {
-//   // 1-get cart=>cartId
-//   let cart = await cartModel.findById(req.params.id)
-//   if (!cart) return next(new AppError("cart not found", 404))
-//   console.log(cart);
-//   // 2-totalPrice
-//   let totalOrderPrice = cart.totalPriceAfterDiscount ? cart.totalPriceAfterDiscount : cart.totalPrice
-//   // 3-create session
-//   let session = await stripe.checkout.sessions.create({
-//     line_items: [{
-//       price_data: {
-//         currency: 'egp',
-//         unit_amount: totalOrderPrice * 100,
-//         product_data: {
-//           name: req.user.name
-//         }
-//       }, quantity: 1
-//     }],
-//     mode: 'payment',
-//     success_url: 'https://route-comm.netlify.app/#/',
-//     cancel_url: 'https://route-comm.netlify.app/#/cart',
-//     customer_email: req.user.email,
-//     client_reference_id: req.params.id,
-//     metadata: req.body.shippingAddress
-//   })
-//   res.json({ message: 'success', session })
-// });
+export const createCheckOutSession = catchError(async (req, res, next) => {
+  // 1-get cart=>cartId
+  let cart = await cartModel.findById(req.params.id)
+  if (!cart) return next(new AppError("cart not found", 404))
+  console.log(cart);
+  // 2-totalPrice
+  let totalOrderPrice = cart.totalPriceAfterDiscount ? cart.totalPriceAfterDiscount : cart.totalPrice
+  // 3-create session
+  let session = await stripe.checkout.sessions.create({
+    line_items: [{
+      price_data: {
+        currency: 'egp',
+        unit_amount: totalOrderPrice * 100,
+        product_data: {
+          name: req.user.name
+        }
+      }, quantity: 1
+    }],
+    mode: 'payment',
+    success_url: 'https://route-comm.netlify.app/#/',
+    cancel_url: 'https://route-comm.netlify.app/#/cart',
+    customer_email: req.user.email,
+    client_reference_id: req.params.id,
+    metadata: req.body.shippingAddress
+  })
+  res.json({ message: 'success', session })
+});
 
 
 
 
 
 // / for online order for haaaaaaaaaaaaaaaaager
-export const createCheckOutSession = catchError(
-    async(req, res) =>{
-        let cart = await cartModel.findById(req.params.id);
-        let totalOrderPrice = cart.totalPriceAfterDiscount?  cart.totalPriceAfterDiscount : cart.totalPrice;
-        let session = await stripe.checkout.sessions.create({
-            line_items: [
-                {
-                price_data: {
-                    currency: "egp",
-                    unit_amount: totalOrderPrice *100,
-                    product_data: {
-                        name: req.user.name
-                    },
-                },
-                quantity: 1,
-                },
-            ],
-            "mode": "payment",
-            // redirect to success page
-            success_url: "https://route-comm.netlify.app/#/",
-            // redirect to cancel page
-            cancel_url: "https://route-comm.netlify.app/#/cart",
-            customer_email:  req.user.email,
-            // unique id for the order use it if you want to get the order 
-            client_reference_id: req.params.id,
-            metadata: req.body.shippingAddress
-        });
-    res.json({message: 'success', session});
-});   
+// export const createCheckOutSession = catchError(
+//     async(req, res) =>{
+//         let cart = await cartModel.findById(req.params.id);
+//         let totalOrderPrice = cart.totalPriceAfterDiscount?  cart.totalPriceAfterDiscount : cart.totalPrice;
+//         let session = await stripe.checkout.sessions.create({
+//             line_items: [
+//                 {
+//                 price_data: {
+//                     currency: "egp",
+//                     unit_amount: totalOrderPrice *100,
+//                     product_data: {
+//                         name: req.user.name
+//                     },
+//                 },
+//                 quantity: 1,
+//                 },
+//             ],
+//             "mode": "payment",
+//             // redirect to success page
+//             success_url: "https://route-comm.netlify.app/#/",
+//             // redirect to cancel page
+//             cancel_url: "https://route-comm.netlify.app/#/cart",
+//             customer_email:  req.user.email,
+//             // unique id for the order use it if you want to get the order 
+//             client_reference_id: req.params.id,
+//             metadata: req.body.shippingAddress
+//         });
+//     res.json({message: 'success', session});
+// });   
 
 export const createOnlineOrder = catchError(
     async(req,res,next)=>{
@@ -157,4 +157,4 @@ export const createOnlineOrder = catchError(
         }else{
             console.log(`Unhandled event type ${event.type}`);
         }
-    });
+});
