@@ -50,109 +50,111 @@ export const getAllOrders = catchError(async (req, res, next) => {
   res.json({ message: 'success', order });
 });
 
-export const createCheckOutSession = catchError(async (req, res, next) => {
-  // 1-get cart=>cartId
-  let cart = await cartModel.findById(req.params.id)
-  if (!cart) return next(new AppError("cart not found", 404))
-  console.log(cart);
-  // 2-totalPrice
-  let totalOrderPrice = cart.totalPriceAfterDiscount ? cart.totalPriceAfterDiscount : cart.totalPrice
-  // 3-create session
-  let session = await stripe.checkout.sessions.create({
-    line_items: [{
-      price_data: {
-        currency: 'egp',
-        unit_amount: totalOrderPrice * 100,
-        product_data: {
-          name: req.user.name
-        }
-      }, quantity: 1
-    }],
-    mode: 'payment',
-    success_url: 'https://route-comm.netlify.app/#/',
-    cancel_url: 'https://route-comm.netlify.app/#/cart',
-    customer_email: req.user.email,
-    client_reference_id: req.params.id,
-    metadata: req.body.shippingAddress
-  })
-  res.json({ message: 'success', session })
-});
-
-// export const createOnlineOrder = catchError((request, response) => {
-//   const sig = request.headers['stripe-signature'].toString();
-//   let event;
-//   try {
-//     event = stripe.webhooks.constructEvent(request.body, sig, "whsec_brR93yAG1dbszEVfxIkLFn0ZWd64HbRs");
-//   } catch (err) {
-//     return response.status(400).send(`Webhook Error: ${err.message}`);
-//   }
-//   // Handle the event
-//   if (event.type == 'checkout.session.completed') {
-//     // const checkoutSessionCompleted = event.data.object;
-//     cart(event.data.object)
-//     console.log('create order here......!');
-//   } else {
-//     console.log(`Unhandled event type ${event.type}`);
-//   }
+// export const createCheckOutSession = catchError(async (req, res, next) => {
+//   // 1-get cart=>cartId
+//   let cart = await cartModel.findById(req.params.id)
+//   if (!cart) return next(new AppError("cart not found", 404))
+//   console.log(cart);
+//   // 2-totalPrice
+//   let totalOrderPrice = cart.totalPriceAfterDiscount ? cart.totalPriceAfterDiscount : cart.totalPrice
+//   // 3-create session
+//   let session = await stripe.checkout.sessions.create({
+//     line_items: [{
+//       price_data: {
+//         currency: 'egp',
+//         unit_amount: totalOrderPrice * 100,
+//         product_data: {
+//           name: req.user.name
+//         }
+//       }, quantity: 1
+//     }],
+//     mode: 'payment',
+//     success_url: 'https://route-comm.netlify.app/#/',
+//     cancel_url: 'https://route-comm.netlify.app/#/cart',
+//     customer_email: req.user.email,
+//     client_reference_id: req.params.id,
+//     metadata: req.body.shippingAddress
+//   })
+//   res.json({ message: 'success', session })
 // });
-export const createOnlineOrder = catchError((request, response, next) => {
-  const sig = request.headers['stripe-signature'];
-  if (!sig) {
-    return response.status(400).send(`Stripe signature header not found.`);
-  }
 
-  let event;
-  try {
-    event = stripe.webhooks.constructEvent(request.body, sig, "whsec_brR93yAG1dbszEVfxIkLFn0ZWd64HbRs");
-  } catch (err) {
-    return response.status(400).send(`Webhook Error: ${err.message}`);
-  }
 
-  // Handle the event
-  if (event.type == 'checkout.session.completed') {
-    // const checkoutSessionCompleted = event.data.object;
-    card(event.data.object)
-    console.log('create order here......!');
-  } else {
-    console.log(`Unhandled event type ${event.type}`);
-  }
-});
 
-async function card(e, res) {
-  // 1-get cart=>cartId
-  let cart = await cartModel.findById(e.client_reference_id)
-  if (!cart) return next(new AppError("cart not found", 404))
-  let user = await userModel.findOne({ email: e.customer_email })
-  // 3-create order
-  let order = new orderModel({
-    user: user._id,
-    orderItems: cart.cartItems,
-    totalOrderPrice: e.amount_total / 100,
-    shippingAddress: e.metadata.shippingAddress,
-    paymentType: "card",
-    isPaid: true,
-    paidAt: Date.now(),
-  })
-  await order.save();
 
-  if (order) {
-    // 4-increment sold & decrement quantity
-    let options = cart.cartItems.map((item) => {
-      return (
-        {
-          updateOne: {
-            "filter": { _id: item.product },
-            "update": { $inc: { sold: item.quantity, quantity: -item.quantity } }
-          }
+
+// / for online order for haaaaaaaaaaaaaaaaager
+export const createCheckOutSession = catchError(
+    async(req, res) =>{
+        let cart = await cartModel.findById(req.params.id);
+        let totalOrderPrice = cart.totalPriceAfterDiscount?  cart.totalPriceAfterDiscount : cart.totalPrice;
+        let session = await stripe.checkout.sessions.create({
+            line_items: [
+                {
+                price_data: {
+                    currency: "egp",
+                    unit_amount: totalOrderPrice *100,
+                    product_data: {
+                        name: req.user.name
+                    },
+                },
+                quantity: 1,
+                },
+            ],
+            "mode": "payment",
+            // redirect to success page
+            success_url: "https://route-comm.netlify.app/#/",
+            // redirect to cancel page
+            cancel_url: "https://route-comm.netlify.app/#/cart",
+            customer_email:  req.user.email,
+            // unique id for the order use it if you want to get the order 
+            client_reference_id: req.params.id,
+            metadata: req.body.shippingAddress
+        });
+    res.json({message: 'success', session});
+});   
+
+export const createOnlineOrder = catchError(
+    async(req,res,next)=>{
+        const sig = req.headers['stripe-signature'];
+        let event;
+        try {
+            event = stripe.webhooks.constructEvent(req.body, sig, "whsec_brR93yAG1dbszEVfxIkLFn0ZWd64HbRs");
+        } catch (err) {
+            return res.status(400).send(`Webhook Error: ${err.message}`);
         }
-      )
-    })
-
-    await productModel.bulkWrite(options)
-
-    // 5-clear cart
-    await cartModel.findByIdAndDelete({ user: user._id })
-    res.json({ message: 'success', order })
-  }
-  return next(new AppError("order not found", 404))// Return the order if everything is successful
-}
+        // Handle the event
+        if(event.type == "checkout.session.completed"){
+            const e = event.data.object;
+            console.log(e);
+            let cart = await cartModel.findById(e.client_reference_id);
+            if(!cart) return next(new AppError("not valid cart", 400));
+            let user = await userModel.findOne({email: e.customer_email});
+            if(!user) return next(new AppError("not valid user", 400  ));
+            let order = new orderModel({
+                user: user._id,
+                orderItems: cart.cartItems,
+                totalOrderPrice: e.amount_total / 100,
+                shippingAddress: e.metadata,
+                paymentType: "Card",
+                isPaid: true,
+                paidAt: Date.now(),
+                isDelivered: true,
+                deliveredAt: Date.now()
+            }) 
+            await order.save();
+            if(order){
+                // update more one field by bulk -> fast , insert & update  in one query
+                let options = cart.cartItems.map(ele => ({
+                    updateOne: {
+                        filter: {_id: ele.product},
+                        update: {$inc: { quantity: -ele.quantity, sold : ele.quantity}},
+                    }
+                }))
+            await productModel.bulkWrite(options); 
+            // delete cart
+            await cartModel.findByIdAndDelete(cart._id);
+            }
+        }else{
+            console.log(`Unhandled event type ${event.type}`);
+        }
+    });
