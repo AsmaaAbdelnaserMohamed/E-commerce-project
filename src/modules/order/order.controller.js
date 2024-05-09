@@ -115,7 +115,7 @@ export const createCheckOutSession = catchError(async (req, res, next) => {
 
 export const createOnlineOrder = catchError(
     async(req,res,next)=>{
-        const sig = req.headers['stripe-signature'];
+        const sig = req.headers['stripe-signature'].toString();
         let event;
         try {
             event = stripe.webhooks.constructEvent(req.body, sig, "whsec_brR93yAG1dbszEVfxIkLFn0ZWd64HbRs");
